@@ -1,0 +1,552 @@
+Project Global_Logistics_BI {
+  database_type: 'PostgreSQL'
+
+  Note: '''
+  Global Logistics Business Intelligence Data Warehouse
+
+  Architecture:
+  Enterprise Star Schema
+
+  Source of Truth:
+  create_tables_v4.sql
+
+  Database:
+  PostgreSQL
+
+  Version:
+  4.0
+
+  Author:
+  Mohamed Alneel
+  '''
+}
+
+/////////////////////////////////////////////////////
+// ENUM TYPES
+/////////////////////////////////////////////////////
+
+Enum shipment_status_enum {
+  Delivered
+  "In Transit"
+  Delayed
+  Cancelled
+  Returned
+}
+
+Enum priority_level_enum {
+  Low
+  Medium
+  High
+  Critical
+}
+
+Enum delivery_type_enum {
+  Standard
+  Express
+  "Same Day"
+}
+
+/////////////////////////////////////////////////////
+// DIMENSION TABLES
+/////////////////////////////////////////////////////
+
+Table dim_date {
+  date_key int [pk]
+
+  full_date date [not null]
+
+  day_number int
+  day_name varchar(20)
+  day_of_week int
+  week_number int
+  month_number int
+  month_name varchar(20)
+
+  quarter_number int
+  year_number int
+
+  fiscal_month int
+  fiscal_quarter int
+  fiscal_year int
+
+  is_weekend boolean
+  is_month_start boolean
+  is_month_end boolean
+
+  created_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Date Dimension
+
+  Grain:
+  One Row = One Calendar Date
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_customers {
+  customer_key int [pk]
+
+  customer_code varchar(20) [unique, not null]
+  customer_name varchar(100)
+
+  customer_type varchar(50)
+  customer_segment varchar(50)
+  industry varchar(100)
+
+  country varchar(50)
+  city varchar(50)
+
+  registration_date date
+  account_manager varchar(100)
+
+  credit_limit_usd decimal(14,2)
+
+  active_status boolean
+
+  effective_from date
+  effective_to date
+  is_current boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Customer Dimension
+
+  Grain:
+  One Row = One Customer Version
+
+  SCD Type:
+  Type 2
+
+  Business Key:
+  customer_code
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_products {
+  product_key int [pk]
+
+  product_code varchar(20) [unique, not null]
+  product_name varchar(100)
+
+  product_category varchar(50)
+  product_subcategory varchar(50)
+
+  unit_weight_kg decimal(12,2)
+  unit_volume_m3 decimal(12,2)
+
+  hazardous_flag boolean
+  temperature_controlled boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Product Dimension
+
+  Grain:
+  One Row = One Product
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_routes {
+  route_key int [pk]
+
+  route_code varchar(20) [unique, not null]
+
+  origin_city varchar(50)
+  destination_city varchar(50)
+
+  origin_country varchar(50)
+  destination_country varchar(50)
+
+  transport_mode varchar(30)
+
+  planned_distance_km decimal(12,2)
+  estimated_transit_hours decimal(10,2)
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Route Dimension
+
+  Grain:
+  One Row = One Route
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_carriers {
+  carrier_key int [pk]
+
+  carrier_code varchar(20) [unique, not null]
+  carrier_name varchar(100)
+
+  service_level varchar(50)
+  headquarters_country varchar(50)
+
+  active_status boolean
+
+  effective_from date
+  effective_to date
+  is_current boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Carrier Dimension
+
+  Grain:
+  One Row = One Carrier Version
+
+  SCD Type:
+  Type 2
+
+  Business Key:
+  carrier_code
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_drivers {
+  driver_key int [pk]
+
+  driver_code varchar(20) [unique, not null]
+  driver_name varchar(100)
+
+  nationality varchar(50)
+  hire_date date
+
+  license_type varchar(30)
+  years_of_experience int
+
+  employment_type varchar(30)
+
+  assigned_region varchar(50)
+  assigned_vehicle_type varchar(50)
+
+  active_status boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Driver Dimension
+
+  Grain:
+  One Row = One Driver
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_vehicles {
+  vehicle_key int [pk]
+
+  vehicle_code varchar(20) [unique, not null]
+  license_plate varchar(20) [unique, not null]
+
+  vehicle_type varchar(50)
+  manufacturer varchar(50)
+  model varchar(50)
+  model_year int
+
+  fuel_type varchar(30)
+
+  cargo_capacity_kg decimal(14,2)
+  cargo_volume_m3 decimal(14,2)
+
+  average_fuel_consumption decimal(10,2)
+
+  maintenance_status varchar(30)
+  purchase_date date
+
+  active_status boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Vehicle Dimension
+
+  Grain:
+  One Row = One Vehicle
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_warehouses {
+  warehouse_key int [pk]
+
+  warehouse_code varchar(20) [unique, not null]
+  warehouse_name varchar(100)
+
+  warehouse_type varchar(50)
+
+  city varchar(50)
+  country varchar(50)
+
+  operating_region varchar(50)
+
+  storage_capacity_tons decimal(14,2)
+
+  temperature_controlled boolean
+  active_status boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Warehouse Dimension
+
+  Grain:
+  One Row = One Warehouse
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table dim_weather {
+  weather_key int [pk]
+
+  weather_code varchar(20) [unique, not null]
+
+  weather_condition varchar(50)
+  severity_level varchar(30)
+  visibility_level varchar(30)
+
+  road_condition varchar(30)
+  transportation_impact varchar(50)
+
+  active_status boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Weather Dimension
+
+  Grain:
+  One Row = One Weather Condition
+  '''
+}
+
+/////////////////////////////////////////////////////
+// FACT TABLES
+/////////////////////////////////////////////////////
+
+Table fact_shipments {
+  shipment_key int [pk]
+
+  shipment_id varchar(20) [unique, not null]
+
+  date_key int [not null]
+  customer_key int [not null]
+  product_key int [not null]
+  carrier_key int [not null]
+  route_key int [not null]
+  driver_key int [not null]
+  vehicle_key int [not null]
+  warehouse_key int [not null]
+  weather_key int [not null]
+
+  shipment_status shipment_status_enum
+
+  weight_kg decimal(14,2)
+  volume_m3 decimal(14,2)
+
+  shipment_value_usd decimal(14,2)
+  freight_cost_usd decimal(14,2)
+  insurance_cost_usd decimal(14,2)
+
+  transit_hours decimal(10,2)
+  delay_hours decimal(10,2)
+
+  distance_km decimal(14,2)
+
+  risk_score decimal(6,2)
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Shipment Fact Table
+
+  Grain:
+  One Row = One Shipment
+
+  Contains operational shipment metrics.
+
+  Financial metrics are stored separately
+  in fact_financials.
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table fact_shipment_events {
+  event_key int [pk]
+
+  shipment_key int [not null]
+
+  date_key int [not null]
+  route_key int [not null]
+  warehouse_key int [not null]
+  weather_key int [not null]
+
+  event_timestamp timestamp [not null]
+
+  event_type varchar(50)
+  event_status varchar(30)
+
+  location_name varchar(100)
+
+  gps_latitude decimal(10,6)
+  gps_longitude decimal(10,6)
+
+  temperature_c decimal(6,2)
+  humidity_pct decimal(5,2)
+
+  event_delay_minutes int
+  event_duration_minutes int
+
+  fuel_consumed_liters decimal(10,2)
+  co2_emissions_kg decimal(10,2)
+
+  anomaly_flag boolean
+  alert_sent boolean
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Shipment Events Fact Table
+
+  Grain:
+  One Row = One Shipment Event
+
+  Stores operational tracking events,
+  GPS locations,
+  IoT sensor readings,
+  shipment milestones,
+  alerts,
+  and transportation monitoring data.
+  '''
+}
+
+/////////////////////////////////////////////////////
+
+Table fact_financials {
+  financial_key int [pk]
+
+  shipment_key int [not null]
+
+  date_key int [not null]
+
+  customer_key int [not null]
+  carrier_key int [not null]
+
+  revenue_usd decimal(14,2)
+
+  freight_cost_usd decimal(14,2)
+  fuel_cost_usd decimal(14,2)
+  warehouse_cost_usd decimal(14,2)
+  insurance_cost_usd decimal(14,2)
+  customs_cost_usd decimal(14,2)
+  handling_cost_usd decimal(14,2)
+  other_cost_usd decimal(14,2)
+
+  total_cost_usd decimal(14,2)
+
+  gross_profit_usd decimal(14,2)
+  profit_margin_pct decimal(6,2)
+
+  currency varchar(10)
+
+  created_at timestamp
+  updated_at timestamp
+  source_system varchar(100)
+
+  Note: '''
+  Financial Fact Table
+
+  Grain:
+  One Row = One Shipment Financial Record
+
+  Stores shipment revenue,
+  costs,
+  profit,
+  and financial KPIs.
+  '''
+}
+
+/////////////////////////////////////////////////////
+// FACT SHIPMENTS RELATIONSHIPS
+/////////////////////////////////////////////////////
+
+Ref: fact_shipments.date_key > dim_date.date_key
+
+Ref: fact_shipments.customer_key > dim_customers.customer_key
+
+Ref: fact_shipments.product_key > dim_products.product_key
+
+Ref: fact_shipments.carrier_key > dim_carriers.carrier_key
+
+Ref: fact_shipments.route_key > dim_routes.route_key
+
+Ref: fact_shipments.driver_key > dim_drivers.driver_key
+
+Ref: fact_shipments.vehicle_key > dim_vehicles.vehicle_key
+
+Ref: fact_shipments.warehouse_key > dim_warehouses.warehouse_key
+
+Ref: fact_shipments.weather_key > dim_weather.weather_key
+
+/////////////////////////////////////////////////////
+// FACT SHIPMENT EVENTS RELATIONSHIPS
+/////////////////////////////////////////////////////
+
+Ref: fact_shipment_events.shipment_key > fact_shipments.shipment_key
+
+Ref: fact_shipment_events.date_key > dim_date.date_key
+
+Ref: fact_shipment_events.route_key > dim_routes.route_key
+
+Ref: fact_shipment_events.warehouse_key > dim_warehouses.warehouse_key
+
+Ref: fact_shipment_events.weather_key > dim_weather.weather_key
+
+/////////////////////////////////////////////////////
+// FACT FINANCIALS RELATIONSHIPS
+/////////////////////////////////////////////////////
+
+Ref: fact_financials.shipment_key > fact_shipments.shipment_key
+
+Ref: fact_financials.date_key > dim_date.date_key
+
+Ref: fact_financials.customer_key > dim_customers.customer_key
+
+Ref: fact_financials.carrier_key > dim_carriers.carrier_key
