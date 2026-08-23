@@ -94,6 +94,22 @@ Tableau
 Interactive BI Dashboards
 
 ```
+```markdown
+## Tableau Dashboards
+
+The Tableau layer provides interactive dashboards for analyzing:
+
+- Shipment volume and delivery performance
+- Average delay and transit efficiency
+- Route performance
+- Carrier performance
+- Financial performance
+- Customer analysis
+- Weather and operational risk
+- Shipment events and anomalies
+
+```
+
 ---
 
 **Author**
