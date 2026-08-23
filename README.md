@@ -96,12 +96,12 @@ Interactive BI Dashboards
 ```
 ---
 
-Author
+**Author**
 
-Mohamed Alneel
+**Mohamed Alneel**
 
 Business Intelligence / Data Analyst
 
-Skills demonstrated:
+**Skills demonstrated:**
 
 Python • Pandas • SQL • PostgreSQL • Tableau • Data Warehousing • ETL • Data Analysis • Data Visualization
